@@ -4,6 +4,30 @@ require_once 'config.php';
 $error = '';
 $success = '';
 
+// Memeriksa parameter ID
+if (!isset($_GET['id'])) {
+    header("Location: index.php");
+    exit;
+}
+
+$id = intval($_GET['id']);
+
+// Mengambil data produk berdasarkan ID
+try {
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $stmt = $conn->prepare("SELECT * FROM products WHERE id = :id");
+    $stmt->execute([':id' => $id]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$product) {
+        header("Location: index.php");
+        exit;
+    }
+} catch (PDOException $e) {
+    die("Gagal memuat data produk: " . $e->getMessage());
+}
+
+// Proses form update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
     $stok = isset($_POST['stok']) ? trim($_POST['stok']) : '';
@@ -17,18 +41,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Harga harus berupa angka positif!';
     } else {
         try {
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $stmt = $conn->prepare("INSERT INTO products (name, stok, price) VALUES (:name, :stok, :price)");
+            $stmt = $conn->prepare("UPDATE products SET name = :name, stok = :stok, price = :price WHERE id = :id");
             $stmt->execute([
                 ':name' => $name,
                 ':stok' => intval($stok),
-                ':price' => floatval($price)
+                ':price' => floatval($price),
+                ':id' => $id
             ]);
             
             header("Location: index.php");
             exit;
         } catch (PDOException $e) {
-            $error = 'Gagal menyimpan data: ' . $e->getMessage();
+            $error = 'Gagal memperbarui data: ' . $e->getMessage();
         }
     }
 }
@@ -39,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tambah Produk</title>
+  <title>Edit Produk</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -58,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <body>
   <div class="container-xxl">
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4 mt-3">
       <div class="container-fluid">
         <a class="navbar-brand font-weight-bold" href="index.php">Belajar PHP</a>
@@ -70,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <a class="nav-link" href="index.php">Daftar Produk</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="add.php">Tambah Produk</a>
+              <a class="nav-link" href="add.php">Tambah Produk</a>
             </li>
           </ul>
         </div>
@@ -79,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="container">
       <div class="form-container">
-        <h3 class="mb-4 text-center text-primary">Tambah Produk Baru</h3>
+        <h3 class="mb-4 text-center text-primary">Edit Produk</h3>
         
         <?php if (!empty($error)): ?>
           <div class="alert alert-danger" role="alert">
@@ -87,28 +112,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         <?php endif; ?>
 
-        <form action="add.php" method="POST">
+        <form action="edit.php?id=<?php echo $product['ID']; ?>" method="POST">
           <div class="mb-3">
             <label for="name" class="form-label">Nama Produk</label>
-            <input type="text" class="form-control" id="name" name="name" placeholder="Masukkan nama produk" value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>" required>
+            <input type="text" class="form-control" id="name" name="name" placeholder="Masukkan nama produk" value="<?php echo htmlspecialchars($product['name']); ?>" required>
           </div>
           
           <div class="mb-3">
             <label for="stok" class="form-label">Stok</label>
-            <input type="number" class="form-control" id="stok" name="stok" min="0" placeholder="Masukkan jumlah stok" value="<?php echo isset($_POST['stok']) ? htmlspecialchars($_POST['stok']) : ''; ?>" required>
+            <input type="number" class="form-control" id="stok" name="stok" min="0" placeholder="Masukkan jumlah stok" value="<?php echo htmlspecialchars($product['stok']); ?>" required>
           </div>
 
           <div class="mb-3">
             <label for="price" class="form-label">Harga</label>
             <div class="input-group">
               <span class="input-group-text">Rp</span>
-              <input type="number" step="any" class="form-control" id="price" name="price" min="0" placeholder="Masukkan harga produk" value="<?php echo isset($_POST['price']) ? htmlspecialchars($_POST['price']) : ''; ?>" required>
+              <input type="number" step="any" class="form-control" id="price" name="price" min="0" placeholder="Masukkan harga produk" value="<?php echo htmlspecialchars($product['price']); ?>" required>
             </div>
           </div>
           
           <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
             <a href="index.php" class="btn btn-secondary me-md-2">Batal</a>
-            <button type="submit" class="btn btn-primary">Simpan Produk</button>
+            <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
           </div>
         </form>
       </div>
